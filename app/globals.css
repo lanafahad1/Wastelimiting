@@ -1,0 +1,171 @@
+@import "tailwindcss";
+@import "./styles/transitions.css";
+
+/* CareBite design system on Tailwind v4 + shadcn-style semantic tokens.
+   A calm off-white canvas with blush and mint bands; sage carries headings and
+   primary actions, powder pink carries highlights. Light only (no dark surfaces). */
+
+:root {
+  /* Brand palette (as specified) */
+  --cb-bg: #FFF9F7;
+  --cb-blush: #FFF1F4;
+  --cb-pink: #F6C9D2;
+  --cb-rose: #FBE1E6;
+  --cb-sage: #D6E8D5;
+  --cb-mint: #E8F3E8;
+  --cb-heading: #526B59;
+  --cb-text: #515151;
+  --cb-border: #EDE5E5;
+  --cb-white: #FFFFFF;
+  /* Derived */
+  --cb-text-muted: #6B6666;
+  --cb-sage-deep: #3F5646;
+  --cb-rose-ink: #7A3E50;
+  --cb-pink-deep: #EDB3C0;
+
+  /* shadcn semantic tokens */
+  --background: var(--cb-bg);
+  --foreground: var(--cb-text);
+  --card: var(--cb-white);
+  --card-foreground: var(--cb-text);
+  --popover: var(--cb-white);
+  --popover-foreground: var(--cb-text);
+  --primary: var(--cb-heading);
+  --primary-foreground: var(--cb-white);
+  --primary-hover: var(--cb-sage-deep);
+  --secondary: var(--cb-mint);
+  --secondary-foreground: var(--cb-sage-deep);
+  --muted: var(--cb-blush);
+  --muted-foreground: var(--cb-text-muted);
+  --accent: var(--cb-rose);
+  --accent-foreground: var(--cb-rose-ink);
+  --destructive: #A23B53;
+  --destructive-soft: #FCE8EC;
+  --warning: #7D5A12;
+  --warning-soft: #FFF4DE;
+  --success: #3F6B4C;
+  --success-soft: #E8F3E8;
+  --border: var(--cb-border);
+  --input: #E5DADA;
+  --ring: var(--cb-heading);
+  --radius: 16px;
+
+  /* Transitions.dev tooltip colours follow the palette */
+  --tt-bg: var(--cb-white);
+  --tt-fg: var(--cb-text);
+  color-scheme: light;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-hover: var(--primary-hover);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-soft: var(--destructive-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-blush: var(--cb-blush);
+  --color-pink: var(--cb-pink);
+  --color-pink-deep: var(--cb-pink-deep);
+  --color-rose: var(--cb-rose);
+  --color-rose-ink: var(--cb-rose-ink);
+  --color-sage: var(--cb-sage);
+  --color-sage-deep: var(--cb-sage-deep);
+  --color-mint: var(--cb-mint);
+  --color-heading: var(--cb-heading);
+
+  --font-sans: var(--font-nunito), "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-display: var(--font-poppins), "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --radius-sm: 10px;
+  --radius-md: 12px;
+  --radius-lg: var(--radius);
+  --radius-xl: 24px;
+
+  --shadow-soft: 0 1px 2px rgba(82, 107, 89, .06), 0 2px 8px rgba(82, 107, 89, .05);
+  --shadow-lift: 0 4px 18px rgba(82, 107, 89, .09);
+
+  --text-display: clamp(2.25rem, 4.2vw + 1rem, 3.5rem);
+  --text-display--line-height: 1.12;
+}
+
+@layer base {
+  *, ::before, ::after { border-color: var(--color-border); }
+  html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+  body {
+    background: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  h1, h2, h3, h4 { font-family: var(--font-display); color: var(--color-heading); line-height: 1.2; font-weight: 600; text-wrap: balance; }
+  a { color: var(--color-heading); text-underline-offset: 3px; }
+  :focus-visible { outline: 3px solid var(--color-ring); outline-offset: 2px; border-radius: 6px; }
+  ::selection { background: var(--cb-pink); color: var(--cb-rose-ink); }
+  [hidden] { display: none !important; }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+  }
+}
+
+@layer components {
+  /* Page container with safe-area aware side gutters (mobile first). */
+  .container-page {
+    width: 100%;
+    max-width: 1180px;
+    margin-inline: auto;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  .container-narrow { max-width: 760px; }
+  .eyebrow {
+    font-family: var(--font-display);
+    font-size: .78rem;
+    font-weight: 600;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--cb-rose-ink);
+  }
+  /* Long-form reading (About, Sources, Privacy). */
+  .prose-cb { max-width: 68ch; display: flex; flex-direction: column; gap: 1rem; }
+  .prose-cb h2 { font-size: 1.375rem; margin-top: 1rem; }
+  .prose-cb h3 { font-size: 1.125rem; }
+  .prose-cb ul { list-style: disc; padding-left: 1.25rem; display: flex; flex-direction: column; gap: .4rem; }
+  .prose-cb ol { list-style: decimal; padding-left: 1.25rem; display: flex; flex-direction: column; gap: .4rem; }
+  .prose-cb a { text-decoration: underline; }
+  .tabular { font-variant-numeric: tabular-nums; }
+
+  /* Base UI popups: wire the transitions.dev states to Base UI's lifecycle.
+     (Components add .is-open / .is-closing from Base UI's transitionStatus.) */
+  .t-backdrop { opacity: 0; transition: opacity var(--modal-open-dur) var(--modal-ease); }
+  .t-backdrop.is-open { opacity: 1; }
+  .t-backdrop.is-closing { opacity: 0; transition-duration: var(--modal-close-dur); }
+  @media (prefers-reduced-motion: reduce) { .t-backdrop { transition: none !important; } }
+}
+
+/* Size overrides for transitions.dev pieces (unlayered so they follow the snippets). */
+.t-tab { height: 40px; padding: 6px 14px; }
+.t-tabs-pill { height: 40px; }
+.t-tt { white-space: normal; width: max-content; max-width: 16rem; text-align: center; }

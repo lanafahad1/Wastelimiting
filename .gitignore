@@ -1,0 +1,18 @@
+node_modules/
+.next/
+out/
+var/
+*.db
+*.db-wal
+*.db-shm
+.env
+.env.local
+.env*.local
+next-env.d.ts
+*.tsbuildinfo
+test-results/
+playwright-report/
+
+# transitions.dev reference files written by `npx transitions-dev add --free`
+# (the library itself is not redistributed; the snippets used live in app/styles/transitions.css)
+transitions/
