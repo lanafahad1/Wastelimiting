@@ -4,7 +4,7 @@
 
 Every food and health rule is based on Saudi government guidance: the Ministry of Health, the Saudi National Diabetes Center, the Saudi Food & Drug Authority (SFDA), the Ministry of Environment, Water and Agriculture (MEWA) and the General Food Security Authority (GFSA).
 
-**Project Development Team:** Lana Fahad Alhari · Nebras Almutairy · Alhanouf Aldubyan · Shumua Alharbi
+**Project Development Team:** Lana Fahad Alhari · Nebras Almutairi · Alhanouf Aldubyan · Shumua Alharbi
 
 > **Medical disclaimer.** CareBite is an educational Health Informatics project designed to demonstrate personalized nutritional decision support. It does not diagnose medical conditions, replace professional medical advice, or guarantee clinical outcomes. Meal suggestions depend on the available data and reviewed dietary rules. Users with complex medical conditions, prescribed diets, or uncertain allergy information should consult a qualified healthcare professional.
 
