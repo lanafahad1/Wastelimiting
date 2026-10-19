@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { ChevronLeft, Scale, Layers, Check, X, Shield, TriangleAlert, Leaf, List } from 'lucide-react';
 import { publicMetadata } from '@/components/public/seo';
 import { SITE_URL } from '@/lib/site';
-import { serviceCall, param } from '@/lib/server/data';
+import { serviceCall, publicCall, param } from '@/lib/server/data';
 import { getActor } from '@/lib/server/session';
 import { withQuery } from '@/components/public/url';
 import { isoDate, formatDate } from '@/lib/format';
@@ -24,7 +24,7 @@ import { PERIODS, PORTIONS } from '@/domain/constants.js';
 type Props = { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> };
 
 /** The public view of a meal (no patient), shared by metadata and the page. */
-const loadPublic = cache(async (id: string) => serviceCall((s) => s.getMealDetail(null, id, {})));
+const loadPublic = cache(async (id: string) => publicCall((s) => s.getMealDetail(null, id, {})));
 
 const fmt = (v: number | null | undefined, d: number) => (v == null ? '—' : Number(v).toLocaleString('en-US', { maximumFractionDigits: d }));
 const FRACTION: Record<number, string> = { 0.5: '½', 1: '1', 1.5: '1½' };

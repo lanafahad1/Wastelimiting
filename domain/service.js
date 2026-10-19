@@ -1,6 +1,6 @@
 // CareBite service layer for hospital nutrition. All business and safety rules
-// live here and are shared by the Node server (SQLite repository) and the
-// clearly labelled browser demo mode (localStorage repository). Every
+// live here and are used by the Next.js server (Postgres snapshot repository,
+// domain/pg-store.js) and by the unit tests (in-memory repository). Every
 // permission and screening check runs here, never only in the UI.
 //
 // Actors are signed-in users: { id, role, name, patientId, status }. Roles:
@@ -46,7 +46,7 @@ const INTAKE_DAYS = 14;
 const LINK_CODE_HOURS = 72;
 export { ENTRY_STATUS };
 
-export function createService({ repo, sfct = SFCT_LIBRARY, now = () => new Date(), randomCode = defaultRandomCode }) {
+export function createService({ repo, sfct = SFCT_LIBRARY, now = () => new Date(), randomCode = defaultRandomCode, catalogState = null }) {
   const today = () => todayIso(now());
   const stamp = () => now().toISOString();
   let seq = 0;
@@ -64,7 +64,9 @@ export function createService({ repo, sfct = SFCT_LIBRARY, now = () => new Date(
   };
 
   // ------------------------------------------------------------ catalogue state
-  const state = { catalog: null, menu: null, compat: new Map() };
+  // A server may pass one catalogState to every read-only request that sees the
+  // same catalogue version, so the catalogue is built once rather than per request.
+  const state = catalogState ?? { catalog: null, menu: null, compat: new Map() };
   function reloadCatalog() {
     const data = repo.getCatalogData();
     state.catalog = buildCatalog({ dishes: data.dishes, meals: data.meals, ingredients: Object.fromEntries(data.ingredients.map((i) => [i.id, i])), sfct });

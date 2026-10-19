@@ -40,13 +40,13 @@ export async function actorFromHeaders(h: Headers): Promise<Actor | null> {
 export const getActor = cache(async (): Promise<Actor | null> => actorFromHeaders(await headers()));
 
 export async function toViewer(actor: Actor): Promise<Viewer> {
-  const { repo } = await getRuntime();
-  const patient = actor.patientId ? repo.getPatient(actor.patientId) : null;
+  const rt = await getRuntime();
+  const demoId = actor.patientId ? await rt.patientDemoId(actor.patientId) : null;
   const active = actor.status === 'active';
   return {
     name: actor.name, username: actor.username, email: actor.email, role: actor.role,
     roleLabel: actor.role ? label(ROLES, actor.role) : 'Access requested', status: actor.status, statusLabel: label(ACCOUNT_STATUS, actor.status),
-    requestedRole: actor.requestedRole, decisionNote: actor.decisionNote, patientId: patient ? String(patient.id) : null, patientDemoId: patient?.demoId ?? null,
+    requestedRole: actor.requestedRole, decisionNote: actor.decisionNote, patientId: demoId ? actor.patientId : null, patientDemoId: demoId,
     isDemo: actor.isDemo, permissions: active ? permissionsFor(actor.role) : [],
   };
 }

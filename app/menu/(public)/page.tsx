@@ -1,5 +1,5 @@
 import { publicMetadata } from '@/components/public/seo';
-import { serviceCall, param } from '@/lib/server/data';
+import { publicCall, param } from '@/lib/server/data';
 import { getViewer } from '@/lib/server/session';
 import { isoDate } from '@/lib/format';
 import { SITE_URL } from '@/lib/site';
@@ -24,9 +24,9 @@ export default async function MenuPage({ searchParams }: Props) {
   const q = (param(sp.q) ?? '').slice(0, 60);
   const date = isoDate(param(sp.date));
   const [initial, viewer, today] = await Promise.all([
-    serviceCall((s) => s.getMenu({ date, period: period || null, q, diet: diet || null, type: type || null })),
+    publicCall((s) => s.getMenu({ date, period: period || null, q, diet: diet || null, type: type || null })),
     getViewer(),
-    serviceCall((s) => s.today() as string),
+    publicCall((s) => s.today() as string),
   ]);
   const filters: MenuFilters = { date: initial.date, period, q, diet, type };
   type Item = { id: string; name: string };

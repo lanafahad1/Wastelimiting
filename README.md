@@ -56,26 +56,27 @@ The meal workflow is **Options offered → Patient choice submitted → Confirme
 
 - **Next.js 16** (App Router, React 19, TypeScript). Pages are server components; client components use **SWR**, starting from the server-fetched data.
 - **better-auth**: email or username with a password and **server-side sessions**. No JWT, and no external auth provider.
-- **SQLite** through Node's built-in `node:sqlite`, shared by the domain and better-auth.
+- **Postgres** ([Neon](https://neon.tech) in production) through `pg`, shared by the domain and better-auth. Each request reads one consistent snapshot of the data; every change is saved in one transaction under a write lock, so several server instances can share the database safely.
 - **Tailwind CSS v4** with **shadcn-style components** on **Base UI**, using the CareBite palette.
 - **Motion** from [transitions.dev](https://transitions.dev) CSS transitions, installed with its CLI (`npx transitions-dev add --free`).
 - The **domain layer** (`domain/`) is plain JavaScript and holds the screening engine, the meal workflow, menu management and RBAC.
 
 ## Getting started
 
-Requirements: **Node.js 22.13 or newer**.
+Requirements: **Node.js 22 or newer** and a **Postgres database**: a free [Neon](https://neon.tech) database (a development branch works well), or Postgres installed locally.
 
 ```bash
 git clone https://github.com/lanafahad1/Wastelimiting.git
 cd Wastelimiting
 npm install
 cp .env.example .env.local
-# edit .env.local: set BETTER_AUTH_SECRET to a random value of at least 32 characters,
-# for example the output of: openssl rand -base64 32
+# edit .env.local:
+#   BETTER_AUTH_SECRET  a random value of at least 32 characters (openssl rand -base64 32)
+#   DATABASE_URL        your Postgres connection string
 npm run dev            # http://localhost:3000
 ```
 
-On first start the database `var/carebite.db` is created and seeded with:
+On first start the tables are created in that database and seeded with:
 - the hospital menu;
 - the SFDA Saudi Food Composition Tables (130 dishes);
 - the diet rules;
@@ -86,10 +87,10 @@ On first start the database `var/carebite.db` is created and seeded with:
 | --- | --- |
 | `npm run dev` | Development server. |
 | `npm run build` then `npm start` | Production build and server. |
-| `npm test` | Domain, database, RBAC and password-policy tests (37). |
+| `npm test` | Domain, RBAC and password-policy tests (34). The 8 Postgres tests also run when `TEST_DATABASE_URL` points to a disposable database (its tables are dropped). |
 | `npm run test:e2e` | Cross-role browser test, 64 checks. Run it against a freshly seeded server; set `CHROMIUM=/path/to/chrome` if Playwright's browser is not installed. |
 | `npm run typecheck` | TypeScript check. |
-| `npm run reset-db` | Delete the local database; the next start re-seeds it. |
+| `npm run reset-db -- --yes` | Delete every CareBite table in the `DATABASE_URL` database; the next start creates and seeds them again. To reset only the demonstration hospital, sign in as `admin.demo` and use the reset in Settings. |
 
 ### Demo accounts (demonstration access only)
 
@@ -102,6 +103,15 @@ All demo accounts use the password `CareBite#2026`, and the login page has one-c
 | `noura.1001`, `khalid.1004` | Patients CB-1001 and CB-1004 |
 
 `layla.applicant` is a pending staff access request that `admin.demo` can approve.
+
+### Deploying on Vercel with Neon
+
+1. Import the GitHub repository in Vercel.
+2. In the project, open **Storage → Create Database → Neon** and connect it to the project. This adds `DATABASE_URL` to the project's environment variables. Choose a Neon region close to your Vercel functions' region (Vercel's default is Washington, D.C., so AWS US East 1).
+3. In **Settings → Environment Variables**, add `BETTER_AUTH_SECRET` (a new random value) and `BETTER_AUTH_URL` (the site's address, for example `https://your-app.vercel.app`), and optionally the `ADMIN_…` variables below.
+4. Deploy. The first request creates the tables and seeds the demonstration data.
+
+Data now persists across deployments and server instances. The free Neon plan pauses the database when idle, so the first request after a quiet period can take a few seconds.
 
 ### Your own admin account
 
@@ -116,7 +126,7 @@ ADMIN_NAME=Your Name              # optional
 
 - The account is created at start-up if it does not exist yet. The server refuses to start if one of the three required values is missing, or if the password breaks the sign-up password rules.
 - An existing account is never changed: to change the password, use Settings.
-- On a host where the database resets (such as Vercel), the account is created again from these values after each reset.
+- If the database is reset, the account is created again from these values.
 
 ## Project structure
 
@@ -130,7 +140,7 @@ components/
   cb/                status chips, workflow stepper, diet code toggletips, meal rows, "Why This Meal?"
   forms/             patient profile sections, intake fields, ingredient pickers
   site/, public/, auth/, patient/, patients/, staff/   per-area components
-domain/              screening engine, workflow, menu management, RBAC policy, SQLite repository
+domain/              screening engine, workflow, menu management, RBAC policy, Postgres store
 data/                SFDA SFCT dish values, ingredients, dishes, meals, menu cycle, local production
 lib/                 auth configuration, session to actor, API client, SEO, formatting
 proxy.ts             per-request CSP nonce, security headers, sign-in redirect
@@ -152,7 +162,8 @@ test/, e2e/          node:test suites and the cross-role browser test
 - **Rate limits.**
   - Sign-in allows 5 attempts per minute per IP; sign-up, password change and account deletion allow 5 per 5 minutes.
   - Sign-in gives one generic error message.
-  - Limits use the forwarded client IP, so deploy behind a reverse proxy that sets `X-Forwarded-For`.
+  - Limits are counted in the database, so they hold across server instances.
+  - Limits use the forwarded client IP, so deploy behind a reverse proxy that sets `X-Forwarded-For` (Vercel does).
 - **No privilege escalation.** Role, status and the patient link are server-only fields. A staff sign-up is only a request until an admin approves it. Patients join with a one-time link code from the nutrition team.
 - **RBAC.**
   - A single policy (`domain/rbac.js`) is checked by pages, the API and every domain operation.
@@ -164,7 +175,7 @@ test/, e2e/          node:test suites and the cross-role browser test
 - **Data protection.**
   - Private pages are server-rendered after the permission check, and marked `noindex`.
   - Every change is written to an audit log.
-  - No secrets are committed: configuration lives in `.env.local`, which git ignores; see `.env.example`.
+  - No secrets are committed: configuration lives in `.env.local` (or the host's environment variables), which git ignores; see `.env.example`.
 
 ## Data sources
 

@@ -15,6 +15,18 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 
 const states = {};
+/**
+ * Pages stream: the loading placeholder (loading.tsx) can arrive before the data,
+ * so after every navigation wait until no loading skeleton is left on the page.
+ */
+function waitForContent(page) {
+  const goto = page.goto.bind(page);
+  page.goto = async (url, options) => {
+    const res = await goto(url, options);
+    await page.waitForFunction(() => !document.querySelector('[role=status] .t-skel-skeleton'), null, { timeout: 15000 }).catch(() => {});
+    return res;
+  };
+}
 /** Sign in once per user (better-auth API), reuse the session cookie for every page. */
 async function session(username, width = 390) {
   if (!states[username]) {
@@ -30,6 +42,7 @@ async function session(username, width = 390) {
   }
   const ctx = await browser.newContext({ viewport: { width, height: 900 }, storageState: states[username] });
   const page = await ctx.newPage();
+  waitForContent(page);
   page.on('pageerror', (e) => pageErrors.push(`[${username}] ${e.message}`));
   page.on('console', (m) => { if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) pageErrors.push(`[${username}] ${m.text().slice(0, 200)}`); });
   return page;
@@ -48,10 +61,10 @@ await noura.goto(`${base}/my-meals`);
 await noura.waitForLoadState('networkidle');
 ok(/^(Choose your|Your )/.test((await noura.locator('main').textContent()).match(/(Choose your \w+\.|Your [^.]+\.)/)?.[0] ?? ''), 'patient sees a plain next-meal message');
 ok(!(await noura.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1)), 'My Meals has no horizontal scroll at 390 px');
-let choose = noura.locator('button:visible', { hasText: /^Choose this meal$/ }).first();
+let choose = noura.locator('.t-acc[data-open=true] button:visible', { hasText: /^Choose this meal$/ }).first();
 if (!(await choose.count())) {
   await noura.locator('section[id^=mp-] button[aria-expanded=false]').first().click();
-  choose = noura.locator('button:visible', { hasText: /^Choose this meal$/ }).first();
+  choose = noura.locator('.t-acc[data-open=true] button:visible', { hasText: /^Choose this meal$/ }).first();
 }
 const chosenPeriod = (await choose.evaluate((b) => b.closest('section[id^=mp-]')?.id ?? '')).replace('mp-', '');
 await choose.click();
@@ -202,6 +215,7 @@ for (const [user, paths] of Object.entries(sweep)) {
   }
 }
 const pub = await anon.newPage();
+waitForContent(pub);
 for (const p of ['/', '/how-it-works', '/menu', '/meal/kabsa-lunch-tray', '/about', '/diets', '/sources', '/contact', '/privacy', '/disclaimer', '/login', '/register']) {
   await pub.goto(`${base}${p}`);
   ok((await pub.locator('h1').count()) === 1, `one h1: ${p}`);

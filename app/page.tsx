@@ -5,7 +5,7 @@ import { publicMetadata } from '@/components/public/seo';
 import { SITE_NAME, SITE_DESCRIPTION } from '@/lib/site';
 import { heroArt, botanical } from '@/lib/art.js';
 import { getActor, homeFor } from '@/lib/server/session';
-import { serviceCall } from '@/lib/server/data';
+import { publicCall } from '@/lib/server/data';
 import { buttonVariants } from '@/components/ui/button';
 import { Band, SectionHead, CheckList, CheckItem, Benefit, Journey, CtaBand, Panel } from '@/components/public/blocks';
 import { MEDICAL_RULES, SAFETY_RULES, ACTIVE_DIET_CATEGORIES } from '@/domain/rules.js';
@@ -21,7 +21,7 @@ export default async function Home() {
   const actor = await getActor();
   const start = actor ? homeFor(actor) : '/login';
   const startLabel = actor ? 'Go to my start page' : 'Try the demonstration hospital';
-  const mealCount = await serviceCall((s) => s.catalog().list.length as number);
+  const mealCount = await publicCall((s) => s.catalog().list.length as number);
   const counts = { meals: mealCount, diets: ACTIVE_DIET_CATEGORIES.length, rules: MEDICAL_RULES.length + SAFETY_RULES.length };
 
   return (

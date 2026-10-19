@@ -1,11 +1,12 @@
 // Authentication with better-auth: email or username + password, sessions
-// stored server-side in SQLite (an opaque, HttpOnly session cookie; no JWT and
+// stored server-side in Postgres (an opaque, HttpOnly session cookie; no JWT and
 // no cookie cache, so every request reads the current role and status).
 //
 // OWASP-aligned choices:
 // - Passwords: at least 8 characters (no composition rules), common passwords
 //   refused, scrypt hashing (better-auth default), max 128 characters.
-// - Brute force: per-IP rate limits on sign-in, sign-up and password changes.
+// - Brute force: per-IP rate limits on sign-in, sign-up and password changes,
+//   counted in the database so they hold across server instances.
 // - No account enumeration on sign-in: better-auth answers "invalid username/email or
 //   password" whichever part was wrong, and hashes even when the user does not exist.
 // - Privilege: role, status and patient link are server-only fields (input: false);
@@ -17,14 +18,14 @@ import { betterAuth, type BetterAuthOptions } from 'better-auth';
 import { APIError, createAuthMiddleware, getSessionFromCtx } from 'better-auth/api';
 import { username } from 'better-auth/plugins';
 import { nextCookies } from 'better-auth/next-js';
-import type { DatabaseSync } from 'node:sqlite';
+import type { Pool } from 'pg';
 import { passwordProblem, USERNAME_RE } from '@/lib/password-policy';
 
 type Domain = {
-  claimLinkCode: (code: string) => { id: string | number; demoId: string };
-  recordAccountLink: (user: { id: string; username: string; name: string }, patientId: string) => void;
-  getUserById: (id: string) => { isDemo?: boolean; role?: string | null; status?: string } | null;
-  countActiveAdmins: () => number;
+  claimLinkCode: (code: string) => Promise<{ id: string | number; demoId: string }>;
+  recordAccountLink: (user: { id: string; username: string; name: string }, patientId: string) => Promise<void>;
+  getUserById: (id: string) => Promise<{ isDemo?: boolean; role?: string | null; status?: string } | null>;
+  countActiveAdmins: () => Promise<number>;
 };
 
 const SECURE = process.env.NODE_ENV === 'production' && process.env.BETTER_AUTH_URL?.startsWith('https://');
@@ -33,7 +34,7 @@ function fieldError(field: string, message: string): never {
   throw new APIError('UNPROCESSABLE_ENTITY', { message, code: 'VALIDATION_FAILED', errors: { [field]: message } } as never);
 }
 
-export function authOptions(db: DatabaseSync, domain: Domain) {
+export function authOptions(db: Pool, domain: Domain) {
   const baseURL = process.env.BETTER_AUTH_URL ?? 'http://localhost:3000';
   return {
     appName: 'CareBite',
@@ -72,14 +73,15 @@ export function authOptions(db: DatabaseSync, domain: Domain) {
       deleteUser: {
         enabled: true,
         beforeDelete: async (user) => {
-          const u = domain.getUserById(user.id);
+          const u = await domain.getUserById(user.id);
           if (u?.isDemo) throw new APIError('FORBIDDEN', { message: 'Shared demo accounts cannot be deleted.' });
-          if (u?.role === 'admin' && domain.countActiveAdmins() <= 1) throw new APIError('FORBIDDEN', { message: 'The last admin account cannot be deleted.' });
+          if (u?.role === 'admin' && (await domain.countActiveAdmins()) <= 1) throw new APIError('FORBIDDEN', { message: 'The last admin account cannot be deleted.' });
         },
       },
     },
     rateLimit: {
       enabled: true,
+      storage: 'database',
       window: 60,
       max: 120,
       customRules: {
@@ -170,7 +172,7 @@ export function authOptions(db: DatabaseSync, domain: Domain) {
             const body = (ctx.body ?? {}) as Record<string, unknown>;
             if (body.accountType === 'patient') {
               let patient;
-              try { patient = domain.claimLinkCode(String(body.linkCode ?? '')); }
+              try { patient = await domain.claimLinkCode(String(body.linkCode ?? '')); }
               catch (e) { fieldError('linkCode', (e as Error).message); }
               return { data: { ...user, role: 'patient', status: 'active', patientId: String(patient.id), requestedRole: null, requestNote: null, isDemo: false } };
             }
@@ -178,7 +180,7 @@ export function authOptions(db: DatabaseSync, domain: Domain) {
           },
           after: async (user, ctx) => {
             if (ctx?.path === '/sign-up/email' && (user as { patientId?: string }).patientId) {
-              domain.recordAccountLink({ id: user.id, username: String((user as { username?: string }).username ?? ''), name: user.name }, String((user as { patientId?: string }).patientId));
+              await domain.recordAccountLink({ id: user.id, username: String((user as { username?: string }).username ?? ''), name: user.name }, String((user as { patientId?: string }).patientId));
             }
           },
         },
@@ -186,7 +188,7 @@ export function authOptions(db: DatabaseSync, domain: Domain) {
       session: {
         create: {
           before: async (session) => {
-            const u = domain.getUserById(session.userId);
+            const u = await domain.getUserById(session.userId);
             if (u?.status === 'deactivated') throw new APIError('FORBIDDEN', { message: 'This account has been deactivated by an admin.', code: 'ACCOUNT_DEACTIVATED' });
           },
         },
@@ -195,5 +197,5 @@ export function authOptions(db: DatabaseSync, domain: Domain) {
   } satisfies BetterAuthOptions;
 }
 
-export const createAuth = (db: DatabaseSync, domain: Domain) => betterAuth(authOptions(db, domain));
+export const createAuth = (db: Pool, domain: Domain) => betterAuth(authOptions(db, domain));
 export type Auth = ReturnType<typeof createAuth>;

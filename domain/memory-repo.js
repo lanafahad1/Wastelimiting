@@ -1,6 +1,6 @@
-// Key-value repository implementing the same interface as the SQLite
-// repository. Used by the browser demo mode (backed by localStorage) and by
-// unit tests (backed by an in-memory object). It is NOT a secure store.
+// Key-value repository implementing the same interface as the Postgres snapshot
+// repository (domain/pg-store.js). Used by unit tests (backed by an in-memory
+// object). It is NOT a secure store.
 
 const EMPTY = () => ({
   seq: 1, users: {}, patients: {}, entries: [], intake: [], requests: [], audit: [],

@@ -1,8 +1,9 @@
 # CareBite (Next.js) — conventions for contributors
 
 CareBite is a hospital meal recommendation platform (university Health Informatics project).
-This app is the Next.js 16 migration of an earlier vanilla-JS version of CareBite. Keep its
-behaviour and wording; improve layout and UX.
+This app is the Next.js 16 migration of the previous vanilla-JS SPA, which lives in
+`/home/user/carebite` (read-only reference: `public/js/pages/*.js`, `public/js/components.js`,
+`public/css/styles.css`). **Port behaviour and wording faithfully; improve only layout/UX.**
 
 Next.js 16 differs from older versions: read `node_modules/next/dist/docs/` when unsure
 (`params`/`searchParams` are Promises; `proxy.ts` replaces middleware; `forbidden()` is enabled).
@@ -11,7 +12,10 @@ Next.js 16 differs from older versions: read `node_modules/next/dist/docs/` when
 - Next.js 16 App Router, React 19, TypeScript (domain code is plain JS in `domain/`, used untyped).
 - Tailwind v4 + shadcn-style components in `components/ui` built on **Base UI** (`@base-ui/react`),
   with **transitions.dev** CSS (`app/styles/transitions.css`, classes `t-*`).
-- better-auth (server sessions in SQLite, HttpOnly cookie, no JWT). RBAC in `domain/rbac.js`.
+- better-auth (server sessions in Postgres, HttpOnly cookie, no JWT). RBAC in `domain/rbac.js`.
+- Postgres (Neon in production) through `domain/pg-store.js`: each request reads one snapshot;
+  pages read with `serviceCall` (or `publicCall` for public, catalogue-only pages); every change
+  goes through the JSON API, which runs it as one locked write transaction (`rt.write`).
 - SWR for client reads with server-fetched `fallbackData`.
 
 ## Roles and RBAC (primary authorization)
@@ -85,10 +89,13 @@ JSON-LD where meaningful (`jsonLd()` helper; add `nonce` from `(await headers())
 to `<script type="application/ld+json">`). Private pages use `privateMetadata` (noindex).
 
 ## Dev and testing
-- `npm run dev` starts the development server at http://localhost:3000 (auth config changes need a restart,
-  because the server runtime is created once per process).
-- Demo accounts (password `CareBite#2026`, demonstration access only): `admin.demo`, `staff.demo`,
-  `noura.1001` (patient CB-1001), `khalid.1004` (patient CB-1004); `layla.applicant` is a pending staff request.
-- `npm run typecheck`, `npm test` (domain, RBAC and password-policy tests), and `npm run test:e2e`
-  (cross-role browser test; run it against a freshly seeded server: `npm run reset-db`, then start the server).
-- Sign-in is rate limited (5 per minute per IP) and sign-up (5 per 5 minutes per IP); a 429 during tests means wait.
+- One shared dev server runs at http://localhost:3000 (do **not** start another, restart it, delete
+  the database, or call the demo reset endpoint — other contributors are testing at the same time).
+- Demo accounts (password `CareBite#2026`): `admin.demo`, `staff.demo`, `noura.1001` (patient CB-1001),
+  `khalid.1004` (patient CB-1004); `layla.applicant` is a pending staff request.
+- Type-check: `npx tsc --noEmit -p .` (fix errors in your files; ignore other areas' in-progress errors).
+- Browser check (Playwright, Chromium preinstalled):
+  `node /tmp/claude-0/-home-user/f675115f-ca25-54e1-818a-5df21ee58ab7/scratchpad/pw/nx.mjs http://localhost:3000 <outdir> <username|-> /path1 /path2`
+  prints h1 + horizontal-overflow per width (1300 and 390) and console errors; screenshots go to `<outdir>`.
+  Write extra scripts in your own scratch folder; prefer creating your own test data over editing
+  the seeded demo patients destructively.

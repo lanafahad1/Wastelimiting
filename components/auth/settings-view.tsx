@@ -257,7 +257,7 @@ function DataCard({ viewer }: { viewer: Viewer }) {
         <a href="/api/account/export" download="carebite-my-data.json" className={buttonVariants({ variant: 'outline' })}><Download aria-hidden />Export my data</a>
         <Link href="/privacy" className={buttonVariants({ variant: 'ghost' })}>Privacy Policy</Link>
       </div>
-      <Kv items={[['Running mode', 'CareBite server with SQLite database'], ['Storage', 'server database']]} />
+      <Kv items={[['Running mode', 'CareBite server with Postgres database'], ['Storage', 'server database']]} />
     </Card>
   );
 }

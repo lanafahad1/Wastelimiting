@@ -1,6 +1,6 @@
 import type { MetadataRoute } from 'next';
 import { SITE_URL } from '@/lib/site';
-import { serviceCall } from '@/lib/server/data';
+import { publicCall } from '@/lib/server/data';
 
 // Built per request from the live catalogue (staff can add meals), never at build time.
 export const dynamic = 'force-dynamic';
@@ -18,7 +18,7 @@ const PAGES: [string, MetadataRoute.Sitemap[number]['changeFrequency'], number][
 ];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const meals = await serviceCall((s) => s.catalog().list.map((m: { id: string; updatedAt?: string }) => ({ id: m.id, updatedAt: m.updatedAt ?? null })) as { id: string; updatedAt: string | null }[]);
+  const meals = await publicCall((s) => s.catalog().list.map((m: { id: string; updatedAt?: string }) => ({ id: m.id, updatedAt: m.updatedAt ?? null })) as { id: string; updatedAt: string | null }[]);
   const now = new Date();
   return [
     ...PAGES.map(([path, changeFrequency, priority]) => ({ url: `${SITE_URL}${path === '/' ? '' : path}`, lastModified: now, changeFrequency, priority })),

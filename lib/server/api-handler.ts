@@ -1,13 +1,14 @@
 // JSON API used by client components (SWR reads and mutations). It reuses the
 // domain route table, resolves the caller from the better-auth session, and
-// every operation is authorized by RBAC inside the domain service.
+// every operation is authorized by RBAC inside the domain service. GET requests
+// read a snapshot; every other method runs as one locked write transaction.
 //
 // CSRF: state-changing requests must be same-origin (Origin header), carry the
 // custom X-CareBite-Request header and a JSON body. Session cookies are
 // SameSite=Lax and HttpOnly.
 import 'server-only';
 import { NextResponse, type NextRequest } from 'next/server';
-import { getRuntime } from './runtime';
+import { getRuntime, type Ctx } from './runtime';
 import { actorFromHeaders, toViewer, type Actor } from './session';
 import { createApiRoutes, matchRoute, errorBody } from '@/domain/routes.js';
 import { ServiceError } from '@/domain/service.js';
@@ -41,7 +42,8 @@ async function readBody(req: NextRequest): Promise<Record<string, unknown>> {
   try { return JSON.parse(text); } catch { throw new ServiceError(400, 'bad_json', 'Malformed JSON.'); }
 }
 
-let routes: ReturnType<typeof createApiRoutes> | null = null;
+// Used only to match paths and read route flags; handlers run on a per-request service.
+const ROUTES = createApiRoutes(null);
 
 /** Account endpoints that are not part of the domain route table. */
 async function accountRoute(method: string, path: string, actor: Actor | null, body: Record<string, unknown>) {
@@ -52,16 +54,19 @@ async function accountRoute(method: string, path: string, actor: Actor | null, b
   if (!path.startsWith('/api/account')) return undefined;
   if (!actor) throw new ServiceError(401, 'unauthenticated', 'Please log in to continue.');
   if (method === 'GET' && path === '/api/account/me') return { user: await toViewer(actor) };
-  if (method === 'GET' && path === '/api/account/export') return rt.service.exportData(actor, actor);
+  if (method === 'GET' && path === '/api/account/export') return (await rt.readContext()).service.exportData(actor, actor);
   if (method === 'POST' && path === '/api/account/link') {
     if (actor.role !== 'patient') throw new ServiceError(403, 'forbidden', 'Only patient accounts can be linked to a patient profile.');
-    if (actor.patientId && rt.repo.getPatient(actor.patientId)) throw new ServiceError(409, 'already_linked', 'This account is already linked to a patient profile.');
-    rt.service.redeemLinkCode(actor, body.linkCode);
-    return { user: await toViewer({ ...actor, patientId: rt.repo.getUserById(actor.id)?.patientId ?? null }) };
+    const patientId = await rt.write(({ repo, service }) => {
+      if (actor.patientId && repo.getPatient(actor.patientId)) throw new ServiceError(409, 'already_linked', 'This account is already linked to a patient profile.');
+      service.redeemLinkCode(actor, body.linkCode);
+      return repo.getUserById(actor.id)?.patientId ?? null;
+    });
+    return { user: await toViewer({ ...actor, patientId }) };
   }
   if (method === 'POST' && path === '/api/account/reset-demo') {
     if (!(actor.isDemo && can(actor.role, 'demo:reset'))) throw new ServiceError(403, 'forbidden', 'Only the demo admin account can reset the demonstration hospital.');
-    rt.resetDemo();
+    await rt.resetDemo();
     return { ok: true, message: 'The demonstration hospital was reset to its starting state.' };
   }
   return undefined;
@@ -75,7 +80,6 @@ export async function handleApi(req: NextRequest, segments: string[]) {
       if (req.headers.get('x-carebite-request') !== '1' || !sameOrigin(req)) return fail(403, 'csrf', 'Request rejected.');
     }
     const rt = await getRuntime();
-    routes ??= createApiRoutes(rt.service);
     const actor = await actorFromHeaders(req.headers);
     const body = method === 'GET' || method === 'HEAD' ? {} : await readBody(req);
     const account = await accountRoute(method, path, actor, body);
@@ -83,11 +87,20 @@ export async function handleApi(req: NextRequest, segments: string[]) {
       const extra: Record<string, string> = path === '/api/account/export' ? { 'Content-Disposition': 'attachment; filename="carebite-my-data.json"' } : {};
       return json(account, 200, extra);
     }
-    const match = matchRoute(routes, method, path);
+    const match = matchRoute(ROUTES, method, path);
     if (!match) return fail(404, 'not_found', 'Not found.');
     if (!match.route.public && !actor) return fail(401, 'unauthenticated', 'Please log in to continue.');
     const query = Object.fromEntries(req.nextUrl.searchParams.entries());
-    const result = await match.route.handler({ params: match.params, query, body, user: actor });
+    const index = ROUTES.indexOf(match.route);
+    const run = ({ service }: Ctx) => createApiRoutes(service)[index].handler({ params: match.params, query, body, user: actor });
+    let result;
+    if (method === 'GET' || method === 'HEAD') {
+      // Public catalogue routes for signed-out visitors need only the menu.
+      const ctx = match.route.public && !actor ? await rt.catalogContext() : await rt.readContext();
+      result = await run(ctx);
+    } else {
+      result = await rt.write(run);
+    }
     return json(result ?? { ok: true });
   } catch (err) {
     const { status, body } = errorBody(err);

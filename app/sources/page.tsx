@@ -84,7 +84,7 @@ export default function SourcesPage() {
               <li>Allergens come from ingredient data and SFDA’s 14 declarable allergens. Packaged products vary by brand; the kitchen checks labels. Meals are never called “allergy-safe”.</li>
               <li>Alerts appear inside CareBite only. It does not send emails, text messages or pager alerts, and it is not connected to any hospital system (electronic health record, admission system, pharmacy or kitchen equipment).</li>
               <li>Staff and patient accounts are demonstration access: no identity is verified. Roles are assigned by the demo admin.</li>
-              <li>Data is kept in a local SQLite database on the CareBite server, with hashed passwords and HttpOnly sessions.</li>
+              <li>Data is kept in a Postgres database that only the CareBite server can reach, with hashed passwords and HttpOnly sessions.</li>
               <li>All patients, staff and records are fictional. The dashboard shows indicators from recorded meals; it does not show cause and effect.</li>
             </ul>
           </Section>
