@@ -29,7 +29,8 @@ async function init(): Promise<Runtime> {
   if (!process.env.BETTER_AUTH_SECRET || process.env.BETTER_AUTH_SECRET.length < 32) {
     throw new Error('BETTER_AUTH_SECRET must be set to a random value of at least 32 characters (see .env.example).');
   }
-  const file = process.env.CAREBITE_DB ?? join(process.cwd(), 'var', 'carebite.db');
+  // Vercel functions can only write to /tmp (per instance, wiped on cold start and redeploy).
+  const file = process.env.CAREBITE_DB ?? (process.env.VERCEL ? '/tmp/carebite.db' : join(process.cwd(), 'var', 'carebite.db'));
   const db = openDatabase(file);
   const repo = createSqliteRepo(db);
   if (!repo.getCatalogData().meals.length) seedCatalog(repo, new Date().toISOString());
