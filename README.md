@@ -103,6 +103,21 @@ All demo accounts use the password `CareBite#2026`, and the login page has one-c
 
 `layla.applicant` is a pending staff access request that `admin.demo` can approve.
 
+### Your own admin account
+
+The `admin.demo` password is published, so on a deployed site anyone can use it. To have an admin account only you can sign in to, set these in `.env.local`, or in your host's environment variables:
+
+```bash
+ADMIN_USERNAME=your.username      # 3–20 letters, numbers, dots or underscores, starting with a letter
+ADMIN_EMAIL=you@example.com
+ADMIN_PASSWORD=a long private passphrase
+ADMIN_NAME=Your Name              # optional
+```
+
+- The account is created at start-up if it does not exist yet. The server refuses to start if one of the three required values is missing, or if the password breaks the sign-up password rules.
+- An existing account is never changed: to change the password, use Settings.
+- On a host where the database resets (such as Vercel), the account is created again from these values after each reset.
+
 ## Project structure
 
 ```
